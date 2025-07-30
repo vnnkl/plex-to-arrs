@@ -54,9 +54,10 @@ SONARR_QUALITY_PROFILE=4  # 4=HD-1080p (see options below)
 TMDB_API_KEY=your_tmdb_api_key
 
 # Optional Settings
-RUN_ON_STARTUP=false      # Run sync immediately when container starts
-CACHE_REFRESH_HOURS=24    # How often to refresh cache from servers (hours)
-TZ=Europe/Amsterdam       # Your timezone for proper scheduling
+RUN_ON_STARTUP=false             # Run sync immediately when container starts
+CACHE_REFRESH_HOURS=24           # How often to refresh cache from servers (hours)
+FETCH_ALL_USER_WATCHLISTS=false  # Fetch ALL users' watchlists (requires admin token)
+TZ=Europe/Amsterdam              # Your timezone for proper scheduling
 ```
 
 ### 🌐 Server URL Configuration
@@ -70,6 +71,25 @@ TZ=Europe/Amsterdam       # Your timezone for proper scheduling
 **Standard Ports:**
 - Radarr: `7878`
 - Sonarr: `8989`
+
+### 👥 Multi-User Watchlist Support
+
+**Default**: Only syncs the watchlist of the Plex token owner.
+
+**All Users Mode**: Set `FETCH_ALL_USER_WATCHLISTS=true` to sync watchlists from ALL Plex users.
+
+⚠️ **Requirements for All Users Mode:**
+- Your Plex token must have **admin privileges**
+- Duplicates are automatically filtered (same movie from multiple users = added once)
+- Falls back to single-user mode if admin access fails
+
+```bash
+# Single user (default)
+FETCH_ALL_USER_WATCHLISTS=false
+
+# All users (requires admin token)
+FETCH_ALL_USER_WATCHLISTS=true
+```
 
 ### 🎭 Quality Profile Options
 
@@ -203,6 +223,7 @@ docker-compose exec plex-to-arrs python plex_to_arr.py
 
 ## 📈 Example Output
 
+**Single User Mode:**
 ```
 ============================================================
 🎬 PLEX WATCHLIST TO RADARR/SONARR SYNC
@@ -211,24 +232,30 @@ docker-compose exec plex-to-arrs python plex_to_arr.py
 📋 Loading sync cache...
 💾 Found 14 previously synced items
 📡 Fetching Plex watchlist...
+📋 Fetching Plex watchlist for token owner...
 📋 Found 16 items in Plex watchlist
 ✅ 14 items already synced (skipping)
 🆕 2 new items to process
+```
 
-🎯 Processing 2 new items:
-------------------------------------------------------------
-[1/2] 📺 The Father (2020) - Type: movie  
-✅ Added movie 'The Father' to Radarr successfully.
-
+**All Users Mode:**
+```
 ============================================================
-📊 SUMMARY
+🎬 PLEX WATCHLIST TO RADARR/SONARR SYNC
+⏰ Started at: 2025-01-30 14:00:01
 ============================================================
-🎬 New movies processed: 1
-📺 New TV shows processed: 1
-🆕 Items newly synced: 2
-💾 Total cached items: 16
-📋 Total watchlist items: 16
-🎉 Successfully synced 2 new items!
+📋 Loading sync cache...
+💾 Found 14 previously synced items
+📡 Fetching Plex watchlist...
+🔍 Fetching watchlists from ALL Plex users...
+  📋 Fetching watchlist for user: Admin
+    ✅ Found 16 items (2 new)
+  📋 Fetching watchlist for user: Family
+    ✅ Found 8 items (3 new)
+📋 Total unique items from all users: 19
+✅ 14 items already synced (skipping)
+🆕 5 new items to process
+🎉 Successfully synced 5 new items!
 ```
 
 ## 🤝 Contributing

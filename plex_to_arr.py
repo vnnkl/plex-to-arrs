@@ -31,6 +31,9 @@ LANGUAGE_PROFILE = 1  # Adjust this value based on your Sonarr configuration
 CACHE_FILE = "/app/logs/sync_cache.json"
 CACHE_REFRESH_HOURS = int(os.getenv("CACHE_REFRESH_HOURS", "24"))  # Refresh cache daily
 
+# Plex settings
+FETCH_ALL_USER_WATCHLISTS = os.getenv("FETCH_ALL_USER_WATCHLISTS", "false").lower() == "true"
+
 def load_sync_cache():
     """Load the sync cache from disk"""
     try:
@@ -129,12 +132,78 @@ def validate_quality_profiles():
 
 validate_quality_profiles()
 
+def get_plex_users():
+    """Get all users on the Plex server (requires admin token)"""
+    try:
+        # First try to get users from the server
+        plex_url = f"https://plex.tv/api/users?X-Plex-Token={PLEX_TOKEN}"
+        response = requests.get(plex_url)
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+            users = []
+            for user in root.findall('User'):
+                user_id = user.get('id')
+                username = user.get('title', 'Unknown')
+                users.append({'id': user_id, 'username': username})
+            return users
+        else:
+            print(f"⚠️  Could not fetch users (status: {response.status_code}), using token owner only")
+            return None
+    except Exception as e:
+        print(f"⚠️  Error fetching users: {e}, using token owner only")
+        return None
+
+def fetch_user_watchlist(user_id=None):
+    """Fetch watchlist for a specific user or token owner"""
+    if user_id:
+        plex_url = f"https://metadata.provider.plex.tv/library/sections/watchlist/all?X-Plex-Token={PLEX_TOKEN}&X-Plex-Container-Start=0&X-Plex-Container-Size=100&userID={user_id}"
+    else:
+        plex_url = f"https://metadata.provider.plex.tv/library/sections/watchlist/all?X-Plex-Token={PLEX_TOKEN}"
+    
+    try:
+        response = requests.get(plex_url)
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+            items = root.findall('Directory') + root.findall('Video')
+            return items
+        else:
+            print(f"⚠️  Failed to fetch watchlist (status: {response.status_code})")
+            return []
+    except Exception as e:
+        print(f"⚠️  Error fetching watchlist: {e}")
+        return []
+
 def fetch_plex_watchlist():
-    print("Fetching Plex watchlist...")
-    plex_url = f"https://metadata.provider.plex.tv/library/sections/watchlist/all?X-Plex-Token={PLEX_TOKEN}"
-    response = requests.get(plex_url)
-    root = ET.fromstring(response.content)
-    return root.findall('Directory') + root.findall('Video')
+    """Fetch Plex watchlist(s) - single user or all users based on settings"""
+    if FETCH_ALL_USER_WATCHLISTS:
+        print("🔍 Fetching watchlists from ALL Plex users...")
+        users = get_plex_users()
+        
+        if users:
+            all_items = []
+            processed_titles = set()  # Avoid duplicates across users
+            
+            for user in users:
+                print(f"  📋 Fetching watchlist for user: {user['username']}")
+                user_items = fetch_user_watchlist(user['id'])
+                
+                # Filter out duplicates based on title
+                for item in user_items:
+                    title = item.get('title', 'Unknown')
+                    if title not in processed_titles:
+                        all_items.append(item)
+                        processed_titles.add(title)
+                
+                print(f"    ✅ Found {len(user_items)} items ({len([i for i in user_items if i.get('title') not in processed_titles])} new)")
+            
+            print(f"📋 Total unique items from all users: {len(all_items)}")
+            return all_items
+        else:
+            print("⚠️  Could not fetch user list, falling back to token owner only")
+            return fetch_user_watchlist()
+    else:
+        print("📋 Fetching Plex watchlist for token owner...")
+        return fetch_user_watchlist()
 
 def fetch_tmdb_id(title, media_type):
     if media_type == "show":

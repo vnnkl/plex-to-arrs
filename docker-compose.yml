@@ -8,6 +8,7 @@ services:
     environment:
       # Plex Configuration
       PLEX_TOKEN: ${PLEX_TOKEN}
+      FETCH_ALL_USER_WATCHLISTS: ${FETCH_ALL_USER_WATCHLISTS:-false}
       
       # Radarr Configuration
       RADARR_URL: ${RADARR_URL}

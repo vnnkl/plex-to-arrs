@@ -22,8 +22,8 @@ RUN chmod +x entrypoint.sh
 # Create log directory
 RUN mkdir -p /app/logs
 
-# Set up cron job for hourly execution
-RUN echo "0 * * * * cd /app && python plex_to_arr.py >> /app/logs/sync.log 2>&1" | crontab -
+# Set up cron job for hourly execution (use full python path)
+RUN echo "0 * * * * cd /app && /usr/local/bin/python plex_to_arr.py >> /app/logs/sync.log 2>&1" | crontab -
 
 # Use entrypoint script
 ENTRYPOINT ["./entrypoint.sh"]
