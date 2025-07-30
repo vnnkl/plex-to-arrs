@@ -7,7 +7,7 @@ cron
 # Run the script once on startup (optional)
 if [ "${RUN_ON_STARTUP}" = "true" ]; then
     echo "Running initial sync on startup..."
-    python plex_to_arr.py
+    /usr/local/bin/python plex_to_arr.py
 fi
 
 # Keep container running and tail logs
